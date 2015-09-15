@@ -1,11 +1,17 @@
 # frozen_string_literal: true
 
 require_relative 'dependency_graph/version'
-require_relative 'dependency_graph/graph'
 
 module Philiprehberger
   module DependencyGraph
     class Error < StandardError; end
+  end
+end
+
+require_relative 'dependency_graph/graph'
+
+module Philiprehberger
+  module DependencyGraph
 
     # Create a new dependency graph
     #
