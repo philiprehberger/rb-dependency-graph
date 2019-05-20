@@ -3,6 +3,7 @@
 [![Tests](https://github.com/philiprehberger/rb-dependency-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/philiprehberger/rb-dependency-graph/actions/workflows/ci.yml)
 [![Gem Version](https://badge.fury.io/rb/philiprehberger-dependency_graph.svg)](https://rubygems.org/gems/philiprehberger-dependency_graph)
 [![License](https://img.shields.io/github/license/philiprehberger/rb-dependency-graph)](LICENSE)
+[![Sponsor](https://img.shields.io/badge/sponsor-GitHub%20Sponsors-ec6cb9)](https://github.com/sponsors/philiprehberger)
 
 Dependency resolver with topological sort and parallel batch scheduling
 
@@ -94,4 +95,4 @@ bundle exec rubocop
 
 ## License
 
-MIT
+[MIT](LICENSE)
