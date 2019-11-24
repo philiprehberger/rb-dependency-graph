@@ -12,7 +12,6 @@ require_relative 'dependency_graph/graph'
 
 module Philiprehberger
   module DependencyGraph
-
     # Create a new dependency graph
     #
     # @return [Graph] a new empty graph

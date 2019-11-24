@@ -110,12 +110,12 @@ module Philiprehberger
       def detect_cycles(node, visited, stack, path, found_cycles)
         visited[node] = true
         stack[node] = true
-        path = path + [node]
+        path += [node]
 
         @nodes[node]&.each do |dep|
           if stack[dep]
             cycle_start = path.index(dep)
-            found_cycles << path[cycle_start..] + [dep] if cycle_start
+            found_cycles << (path[cycle_start..] + [dep]) if cycle_start
           elsif !visited[dep]
             detect_cycles(dep, visited, stack, path, found_cycles)
           end
