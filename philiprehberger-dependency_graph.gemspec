@@ -10,7 +10,8 @@ Gem::Specification.new do |spec|
 
   spec.summary = 'Dependency resolver with topological sort and parallel batch scheduling'
   spec.description = 'Build and resolve dependency graphs using topological sort, detect cycles, ' \
-                     'and generate parallel execution batches for concurrent task scheduling.'
+                     'generate parallel execution batches, query dependencies and dependents, ' \
+                     'find shortest paths, and extract subgraphs.'
   spec.homepage = 'https://philiprehberger.com/open-source-packages/ruby/philiprehberger-dependency_graph'
   spec.license = 'MIT'
 

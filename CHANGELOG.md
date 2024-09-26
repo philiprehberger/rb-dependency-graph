@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-03
+
+### Added
+- `Graph#dependencies_of(item)` — returns direct dependencies of a node
+- `Graph#all_dependencies_of(item)` — returns transitive closure of all dependencies
+- `Graph#dependents_of(item)` — reverse lookup of items that depend on a node
+- `Graph#path(from, to)` — BFS shortest dependency path between two nodes
+- `Graph#subgraph(*items)` — extract a new graph containing only specified nodes and their edges
+- `Graph#roots` — nodes with no dependencies
+- `Graph#leaves` — nodes with no dependents
+- `Graph#depth(item)` — maximum dependency depth for a node
+
 ## [0.1.8] - 2026-03-31
 
 ### Added
