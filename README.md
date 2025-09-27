@@ -128,6 +128,9 @@ graph.resolve  # => [:a, :b, :c]
 | `Graph#roots` | Nodes with no dependencies |
 | `Graph#leaves` | Nodes with no dependents |
 | `Graph#depth(item)` | Maximum dependency depth of a node |
+| `Graph#reverse` | Return a new graph with all edges flipped |
+| `Graph#all_dependents_of(item)` | All transitive dependents of a node |
+| `Graph#independent?(a, b)` | Whether two nodes are mutually unreachable |
 
 ## Development
 
