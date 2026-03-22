@@ -4,6 +4,8 @@ module Philiprehberger
   module DependencyGraph
     # Directed acyclic graph for dependency resolution
     class Graph
+      Error = DependencyGraph::Error
+
       # @return [Hash] the adjacency list (item => dependencies)
       attr_reader :nodes
 
