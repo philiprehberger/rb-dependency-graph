@@ -105,7 +105,144 @@ module Philiprehberger
         found_cycles
       end
 
+      # Return direct dependencies of an item
+      #
+      # @param item [Object] the item to query
+      # @return [Array] direct dependencies, or empty array if item is unknown
+      def dependencies_of(item)
+        (@nodes[item] || []).dup
+      end
+
+      # Return all transitive dependencies of an item (direct + indirect)
+      #
+      # @param item [Object] the item to query
+      # @return [Array] all dependencies in no particular order
+      def all_dependencies_of(item)
+        return [] unless @nodes.key?(item)
+
+        visited = {}
+        queue = @nodes[item].dup
+        result = []
+
+        until queue.empty?
+          dep = queue.shift
+          next if visited[dep]
+
+          visited[dep] = true
+          result << dep
+          queue.concat(@nodes[dep] || [])
+        end
+
+        result
+      end
+
+      # Return items that directly depend on the given item (reverse lookup)
+      #
+      # @param item [Object] the item to query
+      # @return [Array] direct dependents
+      def dependents_of(item)
+        @nodes.each_with_object([]) do |(node, deps), acc|
+          acc << node if deps.include?(item)
+        end
+      end
+
+      # Find shortest dependency path between two nodes using BFS
+      #
+      # @param from [Object] the starting node
+      # @param to [Object] the target node
+      # @return [Array, nil] array of nodes forming the path, or nil if no path exists
+      def path(from, to)
+        return nil unless @nodes.key?(from) && @nodes.key?(to)
+        return [from] if from == to
+
+        visited = { from => nil }
+        queue = [from]
+
+        until queue.empty?
+          current = queue.shift
+          (@nodes[current] || []).each do |dep|
+            next if visited.key?(dep)
+
+            visited[dep] = current
+            if dep == to
+              return build_path(visited, from, to)
+            end
+
+            queue << dep
+          end
+        end
+
+        nil
+      end
+
+      # Extract a subgraph containing only the specified nodes and edges between them
+      #
+      # @param items [Array<Object>] nodes to include
+      # @return [Graph] a new graph with only the specified nodes
+      def subgraph(*items)
+        item_set = items.flatten.to_h { |i| [i, true] }
+        new_graph = self.class.new
+
+        items.flatten.each do |item|
+          next unless @nodes.key?(item)
+
+          matching_deps = (@nodes[item] || []).select { |dep| item_set[dep] }
+          new_graph.add(item, depends_on: matching_deps)
+        end
+
+        new_graph
+      end
+
+      # Return nodes that have no dependencies
+      #
+      # @return [Array] root nodes
+      def roots
+        @nodes.select { |_node, deps| deps.empty? }.keys
+      end
+
+      # Return nodes with no dependents (no other node depends on them)
+      #
+      # @return [Array] leaf nodes
+      def leaves
+        depended_on = @nodes.values.flatten.uniq
+        @nodes.keys.reject { |node| depended_on.include?(node) }
+      end
+
+      # Calculate maximum dependency depth for a node (longest path from any root to this node)
+      #
+      # @param item [Object] the item to query
+      # @return [Integer] the depth, or 0 if the item is a root or unknown
+      def depth(item)
+        return 0 unless @nodes.key?(item)
+
+        memo = {}
+        compute_depth(item, memo)
+      end
+
       private
+
+      def build_path(visited, from, to)
+        path = [to]
+        current = to
+        while current != from
+          current = visited[current]
+          path.unshift(current)
+        end
+        path
+      end
+
+      def compute_depth(item, memo)
+        return memo[item] if memo.key?(item)
+
+        deps = @nodes[item] || []
+        memo[item] = if deps.empty?
+                       0
+                     else
+                       deps.map { |dep| compute_depth(dep, memo) }.max + 1
+                     end
+
+        memo[item]
+      end
 
       def detect_cycles(node, visited, stack, path, found_cycles)
         visited[node] = true

@@ -172,6 +172,242 @@ RSpec.describe Philiprehberger::DependencyGraph do
       end
     end
 
+    describe '#dependencies_of' do
+      it 'returns direct dependencies' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: %i[a b])
+
+        expect(graph.dependencies_of(:c)).to contain_exactly(:a, :b)
+      end
+
+      it 'returns empty array for a node with no dependencies' do
+        graph.add(:a)
+        expect(graph.dependencies_of(:a)).to eq([])
+      end
+
+      it 'returns empty array for an unknown node' do
+        expect(graph.dependencies_of(:unknown)).to eq([])
+      end
+    end
+
+    describe '#all_dependencies_of' do
+      it 'returns all transitive dependencies' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:b])
+
+        expect(graph.all_dependencies_of(:c)).to contain_exactly(:a, :b)
+      end
+
+      it 'returns only direct dependencies when there are no transitive ones' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+
+        expect(graph.all_dependencies_of(:b)).to eq([:a])
+      end
+
+      it 'returns empty array for a root node' do
+        graph.add(:a)
+        expect(graph.all_dependencies_of(:a)).to eq([])
+      end
+
+      it 'returns empty array for an unknown node' do
+        expect(graph.all_dependencies_of(:unknown)).to eq([])
+      end
+
+      it 'handles diamond dependencies without duplicates' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:a])
+        graph.add(:d, depends_on: %i[b c])
+
+        expect(graph.all_dependencies_of(:d)).to contain_exactly(:a, :b, :c)
+      end
+    end
+
+    describe '#dependents_of' do
+      it 'returns direct dependents' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:a])
+
+        expect(graph.dependents_of(:a)).to contain_exactly(:b, :c)
+      end
+
+      it 'returns empty array for a leaf node' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+
+        expect(graph.dependents_of(:b)).to eq([])
+      end
+
+      it 'returns empty array for an unknown node' do
+        expect(graph.dependents_of(:unknown)).to eq([])
+      end
+    end
+
+    describe '#path' do
+      it 'finds shortest path between two nodes' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:b])
+
+        expect(graph.path(:c, :a)).to eq(%i[c b a])
+      end
+
+      it 'returns single-element array when from equals to' do
+        graph.add(:a)
+        expect(graph.path(:a, :a)).to eq([:a])
+      end
+
+      it 'returns nil when no path exists' do
+        graph.add(:a)
+        graph.add(:b)
+
+        expect(graph.path(:a, :b)).to be_nil
+      end
+
+      it 'returns nil for unknown nodes' do
+        expect(graph.path(:unknown, :other)).to be_nil
+      end
+
+      it 'finds shortest path in diamond graph' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:a])
+        graph.add(:d, depends_on: %i[b c])
+
+        path = graph.path(:d, :a)
+        expect(path.first).to eq(:d)
+        expect(path.last).to eq(:a)
+        expect(path.length).to eq(3)
+      end
+    end
+
+    describe '#subgraph' do
+      it 'extracts a subgraph with selected nodes' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:b])
+        graph.add(:d, depends_on: [:c])
+
+        sub = graph.subgraph(:a, :b, :c)
+        expect(sub.nodes.keys).to contain_exactly(:a, :b, :c)
+        expect(sub.dependencies_of(:c)).to eq([:b])
+        expect(sub.dependencies_of(:b)).to eq([:a])
+      end
+
+      it 'excludes edges to nodes not in the subgraph' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:b])
+
+        sub = graph.subgraph(:b, :c)
+        expect(sub.dependencies_of(:b)).to eq([])
+        expect(sub.dependencies_of(:c)).to eq([:b])
+      end
+
+      it 'returns empty graph for unknown nodes' do
+        sub = graph.subgraph(:unknown)
+        expect(sub.nodes).to be_empty
+      end
+
+      it 'accepts an array of items' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+
+        sub = graph.subgraph(%i[a b])
+        expect(sub.nodes.keys).to contain_exactly(:a, :b)
+      end
+    end
+
+    describe '#roots' do
+      it 'returns nodes with no dependencies' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c)
+
+        expect(graph.roots).to contain_exactly(:a, :c)
+      end
+
+      it 'returns empty array for empty graph' do
+        expect(graph.roots).to eq([])
+      end
+
+      it 'returns all nodes when none have dependencies' do
+        graph.add(:a)
+        graph.add(:b)
+
+        expect(graph.roots).to contain_exactly(:a, :b)
+      end
+    end
+
+    describe '#leaves' do
+      it 'returns nodes that no other node depends on' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:a])
+
+        expect(graph.leaves).to contain_exactly(:b, :c)
+      end
+
+      it 'returns empty array for empty graph' do
+        expect(graph.leaves).to eq([])
+      end
+
+      it 'returns all nodes when there are no edges' do
+        graph.add(:a)
+        graph.add(:b)
+
+        expect(graph.leaves).to contain_exactly(:a, :b)
+      end
+    end
+
+    describe '#depth' do
+      it 'returns 0 for a root node' do
+        graph.add(:a)
+        expect(graph.depth(:a)).to eq(0)
+      end
+
+      it 'returns 1 for a direct dependent of a root' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+
+        expect(graph.depth(:b)).to eq(1)
+      end
+
+      it 'returns max depth for deep chains' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:b])
+        graph.add(:d, depends_on: [:c])
+
+        expect(graph.depth(:d)).to eq(3)
+      end
+
+      it 'returns max depth in diamond graph' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:a])
+        graph.add(:d, depends_on: %i[b c])
+
+        expect(graph.depth(:d)).to eq(2)
+      end
+
+      it 'returns 0 for an unknown node' do
+        expect(graph.depth(:unknown)).to eq(0)
+      end
+
+      it 'handles disconnected nodes' do
+        graph.add(:a)
+        graph.add(:b)
+
+        expect(graph.depth(:a)).to eq(0)
+        expect(graph.depth(:b)).to eq(0)
+      end
+    end
+
     describe 'edge cases' do
       it 'handles an empty graph' do
         expect(graph.nodes).to be_empty
