@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-09
+
+### Added
+- `Graph#reverse` — return a new graph with all edges flipped (useful for dependent analysis)
+- `Graph#all_dependents_of(item)` — transitive closure of items depending on a node
+- `Graph#independent?(a, b)` — check whether two nodes are mutually unreachable
+
 ## [0.2.0] - 2026-04-03
 
 ### Added

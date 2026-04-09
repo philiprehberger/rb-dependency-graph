@@ -208,6 +208,110 @@ module Philiprehberger
         @nodes.keys.reject { |node| depended_on.include?(node) }
       end
 
+      # Merge another graph into this one, combining nodes and dependencies
+      #
+      # @param other [Graph] another graph to merge
+      # @return [self]
+      def merge(other)
+        raise Error, 'Can only merge Graph instances' unless other.is_a?(self.class)
+
+        other.nodes.each do |node, deps|
+          @nodes[node] ||= []
+          deps.each do |dep|
+            @nodes[node] << dep unless @nodes[node].include?(dep)
+          end
+        end
+        self
+      end
+
+      # Remove a node and all edges referencing it
+      #
+      # @param item [Object] the item to remove
+      # @return [Boolean] true if the node existed, false otherwise
+      def remove(item)
+        return false unless @nodes.key?(item)
+
+        @nodes.delete(item)
+        @nodes.each_value { |deps| deps.delete(item) }
+        true
+      end
+
+      # Total number of nodes in the graph
+      #
+      # @return [Integer]
+      def size
+        @nodes.size
+      end
+
+      # Whether the graph has no nodes
+      #
+      # @return [Boolean]
+      def empty?
+        @nodes.empty?
+      end
+
+      # Return a new graph with all edges reversed (dependents become dependencies)
+      #
+      # @return [Graph] a new graph where each edge direction is flipped
+      def reverse
+        new_graph = self.class.new
+        @nodes.each_key { |node| new_graph.instance_variable_get(:@nodes)[node] ||= [] }
+        @nodes.each do |node, deps|
+          deps.each { |dep| new_graph.add(dep, depends_on: [node]) }
+        end
+        new_graph
+      end
+
+      # Return all transitive dependents of an item (direct + indirect)
+      #
+      # @param item [Object] the item to query
+      # @return [Array] all items that depend on this item, directly or transitively
+      def all_dependents_of(item)
+        return [] unless @nodes.key?(item)
+
+        visited = {}
+        queue = dependents_of(item)
+        result = []
+
+        until queue.empty?
+          dep = queue.shift
+          next if visited[dep]
+
+          visited[dep] = true
+          result << dep
+          queue.concat(dependents_of(dep))
+        end
+
+        result
+      end
+
+      # Check whether two nodes are independent (neither depends on the other transitively)
+      #
+      # @param node_a [Object]
+      # @param node_b [Object]
+      # @return [Boolean] true if neither node is reachable from the other
+      def independent?(node_a, node_b)
+        return false if node_a == node_b
+        return false unless @nodes.key?(node_a) && @nodes.key?(node_b)
+
+        !all_dependencies_of(node_a).include?(node_b) &&
+          !all_dependencies_of(node_b).include?(node_a)
+      end
+
+      # Export the graph in Graphviz DOT format
+      #
+      # @param name [String] the digraph name
+      # @return [String] DOT source
+      def to_dot(name: 'G')
+        lines = ["digraph #{name} {"]
+        @nodes.each_key { |node| lines << "  #{dot_quote(node)};" }
+        @nodes.each do |node, deps|
+          deps.each { |dep| lines << "  #{dot_quote(node)} -> #{dot_quote(dep)};" }
+        end
+        lines << '}'
+        lines.join("\n")
+      end
+
       # Calculate maximum dependency depth for a node (longest path from any root to this node)
       #
       # @param item [Object] the item to query
@@ -220,6 +324,10 @@ module Philiprehberger
       end
 
       private
+
+      def dot_quote(node)
+        %("#{node.to_s.gsub('"', '\"')}")
+      end
 
       def build_path(visited, from, to)
         path = [to]

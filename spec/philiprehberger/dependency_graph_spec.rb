@@ -408,6 +408,94 @@ RSpec.describe Philiprehberger::DependencyGraph do
       end
     end
 
+    describe '#merge' do
+      it 'merges nodes and dependencies from another graph' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+
+        other = described_class.new
+        other.add(:c, depends_on: [:b])
+        other.add(:d, depends_on: [:c])
+
+        graph.merge(other)
+        expect(graph.nodes.keys).to contain_exactly(:a, :b, :c, :d)
+        expect(graph.dependencies_of(:c)).to eq([:b])
+      end
+
+      it 'combines duplicate dependencies without duplication' do
+        graph.add(:b, depends_on: [:a])
+        other = described_class.new
+        other.add(:b, depends_on: [:a])
+        graph.merge(other)
+        expect(graph.nodes[:b]).to eq([:a])
+      end
+
+      it 'returns self for chaining' do
+        other = described_class.new
+        expect(graph.merge(other)).to eq(graph)
+      end
+
+      it 'raises Error for non-Graph argument' do
+        expect { graph.merge('not a graph') }.to raise_error(described_class::Error)
+      end
+    end
+
+    describe '#remove' do
+      it 'removes a node and all edges referencing it' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:a])
+
+        expect(graph.remove(:a)).to be true
+        expect(graph.nodes).not_to have_key(:a)
+        expect(graph.dependencies_of(:b)).to eq([])
+        expect(graph.dependencies_of(:c)).to eq([])
+      end
+
+      it 'returns false for unknown nodes' do
+        expect(graph.remove(:unknown)).to be false
+      end
+    end
+
+    describe '#size and #empty?' do
+      it 'reports size and empty correctly' do
+        expect(graph.empty?).to be true
+        expect(graph.size).to eq(0)
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        expect(graph.empty?).to be false
+        expect(graph.size).to eq(2)
+      end
+    end
+
+    describe '#to_dot' do
+      it 'emits a valid Graphviz digraph' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+
+        dot = graph.to_dot
+        expect(dot).to start_with('digraph G {')
+        expect(dot).to end_with('}')
+        expect(dot).to include('"a"')
+        expect(dot).to include('"b"')
+        expect(dot).to include('"b" -> "a"')
+      end
+
+      it 'accepts a custom graph name' do
+        graph.add(:a)
+        expect(graph.to_dot(name: 'Deps')).to include('digraph Deps {')
+      end
+
+      it 'emits empty digraph for empty graph' do
+        expect(graph.to_dot).to eq("digraph G {\n}")
+      end
+
+      it 'escapes quotes in node labels' do
+        graph.add('a"b')
+        expect(graph.to_dot).to include('"a\\"b"')
+      end
+    end
+
     describe 'edge cases' do
       it 'handles an empty graph' do
         expect(graph.nodes).to be_empty
@@ -505,6 +593,106 @@ RSpec.describe Philiprehberger::DependencyGraph do
         graph.add(:a).add(:b, depends_on: [:a]).add(:c, depends_on: [:b])
         result = graph.resolve
         expect(result).to eq(%i[a b c])
+      end
+    end
+
+    describe '#reverse' do
+      it 'returns a new graph with edges flipped' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:b])
+
+        reversed = graph.reverse
+        expect(reversed).to be_a(described_class)
+        expect(reversed).not_to equal(graph)
+        expect(reversed.dependencies_of(:a)).to eq([:b])
+        expect(reversed.dependencies_of(:b)).to eq([:c])
+        expect(reversed.dependencies_of(:c)).to eq([])
+      end
+
+      it 'preserves all nodes including isolated ones' do
+        graph.add(:a)
+        graph.add(:b)
+        reversed = graph.reverse
+        expect(reversed.size).to eq(2)
+      end
+
+      it 'does not mutate the original graph' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.reverse
+        expect(graph.dependencies_of(:b)).to eq([:a])
+        expect(graph.dependencies_of(:a)).to eq([])
+      end
+
+      it 'reverse of reverse yields equivalent edges' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: %i[a b])
+
+        round_trip = graph.reverse.reverse
+        graph.nodes.each_key do |node|
+          expect(round_trip.dependencies_of(node).sort).to eq(graph.dependencies_of(node).sort)
+        end
+      end
+    end
+
+    describe '#all_dependents_of' do
+      it 'returns transitive dependents' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:b])
+        graph.add(:d, depends_on: [:c])
+
+        expect(graph.all_dependents_of(:a)).to contain_exactly(:b, :c, :d)
+        expect(graph.all_dependents_of(:b)).to contain_exactly(:c, :d)
+        expect(graph.all_dependents_of(:d)).to eq([])
+      end
+
+      it 'returns empty array for unknown item' do
+        expect(graph.all_dependents_of(:missing)).to eq([])
+      end
+
+      it 'handles diamond dependencies without duplicates' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:a])
+        graph.add(:d, depends_on: %i[b c])
+
+        expect(graph.all_dependents_of(:a)).to contain_exactly(:b, :c, :d)
+      end
+    end
+
+    describe '#independent?' do
+      before do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c)
+        graph.add(:d, depends_on: [:c])
+      end
+
+      it 'returns true for two unrelated nodes' do
+        expect(graph.independent?(:b, :d)).to be true
+        expect(graph.independent?(:a, :c)).to be true
+      end
+
+      it 'returns false when one depends on the other' do
+        expect(graph.independent?(:a, :b)).to be false
+        expect(graph.independent?(:b, :a)).to be false
+      end
+
+      it 'returns false for the same node' do
+        expect(graph.independent?(:a, :a)).to be false
+      end
+
+      it 'returns false if either node is unknown' do
+        expect(graph.independent?(:a, :missing)).to be false
+        expect(graph.independent?(:missing, :a)).to be false
+      end
+
+      it 'detects transitive dependency as not independent' do
+        graph.add(:e, depends_on: [:b])
+        expect(graph.independent?(:e, :a)).to be false
       end
     end
   end
