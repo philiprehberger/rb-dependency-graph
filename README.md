@@ -110,6 +110,23 @@ graph.add(:a).add(:b, depends_on: [:a]).add(:c, depends_on: [:b])
 graph.resolve  # => [:a, :b, :c]
 ```
 
+### Graphviz Export
+
+```ruby
+graph = Philiprehberger::DependencyGraph.new
+graph.add(:a)
+graph.add(:b, depends_on: [:a])
+graph.add(:c, depends_on: [:b])
+
+puts graph.to_dot
+# digraph dependencies {
+#   "b" -> "a";
+#   "c" -> "b";
+# }
+
+graph.to_dot(name: 'MyDeps')  # Customize the digraph name
+```
+
 ## API
 
 | Method | Description |
@@ -131,6 +148,7 @@ graph.resolve  # => [:a, :b, :c]
 | `Graph#reverse` | Return a new graph with all edges flipped |
 | `Graph#all_dependents_of(item)` | All transitive dependents of a node |
 | `Graph#independent?(a, b)` | Whether two nodes are mutually unreachable |
+| `#to_dot(name:)` | Graphviz DOT representation |
 
 ## Development
 

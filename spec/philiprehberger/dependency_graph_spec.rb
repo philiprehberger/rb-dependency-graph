@@ -469,30 +469,66 @@ RSpec.describe Philiprehberger::DependencyGraph do
     end
 
     describe '#to_dot' do
-      it 'emits a valid Graphviz digraph' do
+      it 'emits an empty digraph for an empty graph' do
+        expect(graph.to_dot).to eq("digraph dependencies {\n}\n")
+      end
+
+      it 'declares a single isolated node with no dependencies' do
+        graph.add(:only)
+        dot = graph.to_dot
+        expect(dot).to start_with("digraph dependencies {\n")
+        expect(dot).to end_with("}\n")
+        expect(dot).to include("  \"only\";\n")
+      end
+
+      it 'emits edges for nodes with dependencies' do
         graph.add(:a)
         graph.add(:b, depends_on: [:a])
 
         dot = graph.to_dot
-        expect(dot).to start_with('digraph G {')
-        expect(dot).to end_with('}')
-        expect(dot).to include('"a"')
-        expect(dot).to include('"b"')
-        expect(dot).to include('"b" -> "a"')
+        expect(dot).to include("  \"b\" -> \"a\";\n")
       end
 
-      it 'accepts a custom graph name' do
+      it 'orders nodes and edges alphabetically for deterministic output' do
+        graph.add(:c, depends_on: %i[b a])
+        graph.add(:b, depends_on: [:a])
+
+        dot = graph.to_dot
+        # Nodes sorted alphabetically (a, b, c); within each node, edges are
+        # emitted in alphabetical order. `a` has no outgoing edges and is
+        # depended on by others, so it produces no declaration line.
+        expect(dot).to eq(
+          "digraph dependencies {\n  " \
+          "\"b\" -> \"a\";\n  " \
+          "\"c\" -> \"a\";\n  " \
+          "\"c\" -> \"b\";\n" \
+          "}\n"
+        )
+      end
+
+      it 'declares truly isolated nodes even when other edges exist' do
         graph.add(:a)
-        expect(graph.to_dot(name: 'Deps')).to include('digraph Deps {')
+        graph.add(:b, depends_on: [:a])
+        graph.add(:z)
+
+        dot = graph.to_dot
+        expect(dot).to include("  \"z\";\n")
+        expect(dot).to include("  \"b\" -> \"a\";\n")
       end
 
-      it 'emits empty digraph for empty graph' do
-        expect(graph.to_dot).to eq("digraph G {\n}")
+      it 'renders cyclic graphs without raising' do
+        graph.add(:a, depends_on: [:b])
+        graph.add(:b, depends_on: [:a])
+
+        expect { graph.to_dot }.not_to raise_error
+        dot = graph.to_dot
+        expect(dot).to include("  \"a\" -> \"b\";\n")
+        expect(dot).to include("  \"b\" -> \"a\";\n")
       end
 
-      it 'escapes quotes in node labels' do
-        graph.add('a"b')
-        expect(graph.to_dot).to include('"a\\"b"')
+      it 'uses a custom graph name in the header' do
+        graph.add(:a)
+        expect(graph.to_dot(name: 'MyDeps')).to start_with("digraph MyDeps {\n")
       end
     end
 

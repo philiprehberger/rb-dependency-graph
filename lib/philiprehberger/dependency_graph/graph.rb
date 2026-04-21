@@ -298,18 +298,33 @@ module Philiprehberger
           !all_dependencies_of(node_b).include?(node_a)
       end
 
-      # Export the graph in Graphviz DOT format
+      # Export the graph in Graphviz DOT format.
       #
-      # @param name [String] the digraph name
-      # @return [String] DOT source
-      def to_dot(name: 'G')
-        lines = ["digraph #{name} {"]
-        @nodes.each_key { |node| lines << "  #{dot_quote(node)};" }
-        @nodes.each do |node, deps|
-          deps.each { |dep| lines << "  #{dot_quote(node)} -> #{dot_quote(dep)};" }
+      # Nodes are emitted in alphabetical order (cast to string for sort key),
+      # and edges within a node are sorted alphabetically for deterministic
+      # output. Nodes that participate in at least one edge (incoming or
+      # outgoing) are emitted implicitly via the edge lines; truly isolated
+      # nodes are declared explicitly so they still appear in the rendered
+      # graph. Works on graphs containing cycles.
+      #
+      # @param name [String] the digraph name used in the `digraph` header
+      # @return [String] Graphviz DOT source, terminated by a newline
+      def to_dot(name: 'dependencies')
+        output = "digraph #{name} {\n"
+        depended_on = @nodes.each_with_object({}) do |(_node, deps), acc|
+          deps.each { |dep| acc[dep] = true }
         end
-        lines << '}'
-        lines.join("\n")
+        sorted_nodes = @nodes.keys.sort_by(&:to_s)
+        sorted_nodes.each do |node|
+          deps = (@nodes[node] || []).sort_by(&:to_s)
+          if deps.empty?
+            output << "  #{dot_quote(node)};\n" unless depended_on[node]
+          else
+            deps.each { |dep| output << "  #{dot_quote(node)} -> #{dot_quote(dep)};\n" }
+          end
+        end
+        output << "}\n"
+        output
       end
 
       # Calculate maximum dependency depth for a node (longest path from any root to this node)
