@@ -77,6 +77,9 @@ graph.add(:d, depends_on: [:b, :c])
 graph.dependencies_of(:d)      # => [:b, :c]
 graph.all_dependencies_of(:d)  # => [:b, :c, :a]
 graph.dependents_of(:b)        # => [:c, :d]
+
+graph.out_degree(:d)           # => 2
+graph.in_degree(:b)            # => 2
 ```
 
 ### Path Finding
@@ -140,6 +143,8 @@ graph.to_dot(name: 'MyDeps')  # Customize the digraph name
 | `Graph#dependencies_of(item)` | Direct dependencies of an item |
 | `Graph#all_dependencies_of(item)` | All transitive dependencies |
 | `Graph#dependents_of(item)` | Items that directly depend on an item |
+| `Graph#in_degree(item)` | Count of direct dependents for an item |
+| `Graph#out_degree(item)` | Count of direct dependencies for an item |
 | `Graph#path(from, to)` | Shortest dependency path (BFS), or nil |
 | `Graph#subgraph(*items)` | Extract a new graph with specified nodes |
 | `Graph#roots` | Nodes with no dependencies |

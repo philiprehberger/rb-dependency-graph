@@ -247,6 +247,44 @@ RSpec.describe Philiprehberger::DependencyGraph do
       end
     end
 
+    describe '#out_degree' do
+      it 'returns the number of direct dependencies' do
+        graph.add(:a)
+        graph.add(:b)
+        graph.add(:c, depends_on: %i[a b])
+        expect(graph.out_degree(:c)).to eq(2)
+      end
+
+      it 'returns 0 for nodes with no dependencies' do
+        graph.add(:a)
+        expect(graph.out_degree(:a)).to eq(0)
+      end
+
+      it 'returns 0 for unknown nodes' do
+        expect(graph.out_degree(:missing)).to eq(0)
+      end
+    end
+
+    describe '#in_degree' do
+      it 'returns the number of direct dependents' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        graph.add(:c, depends_on: [:a])
+        graph.add(:d, depends_on: [:a])
+        expect(graph.in_degree(:a)).to eq(3)
+      end
+
+      it 'returns 0 for nodes that nothing depends on' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+        expect(graph.in_degree(:b)).to eq(0)
+      end
+
+      it 'returns 0 for unknown nodes' do
+        expect(graph.in_degree(:missing)).to eq(0)
+      end
+    end
+
     describe '#path' do
       it 'finds shortest path between two nodes' do
         graph.add(:a)

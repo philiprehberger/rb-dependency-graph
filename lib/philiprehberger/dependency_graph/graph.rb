@@ -146,6 +146,28 @@ module Philiprehberger
         end
       end
 
+      # Number of direct dependencies for an item.
+      #
+      # Returns 0 for unknown items, matching the defensive behavior of
+      # {#dependencies_of}.
+      #
+      # @param item [Object] the item to query
+      # @return [Integer] count of direct dependencies
+      def out_degree(item)
+        (@nodes[item] || []).size
+      end
+
+      # Number of direct dependents for an item (how many items depend on it).
+      #
+      # Returns 0 for unknown items, matching the defensive behavior of
+      # {#dependents_of}.
+      #
+      # @param item [Object] the item to query
+      # @return [Integer] count of direct dependents
+      def in_degree(item)
+        @nodes.count { |_node, deps| deps.include?(item) }
+      end
+
       # Find shortest dependency path between two nodes using BFS
       #
       # @param from [Object] the starting node
