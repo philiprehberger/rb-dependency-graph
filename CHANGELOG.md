@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-12
+
+### Added
+- `Graph#remove(item)` deletes a node and every incident edge; returns `true` when present, `false` when the node is unknown
+
 ## [0.5.0] - 2026-05-01
 
 ### Added

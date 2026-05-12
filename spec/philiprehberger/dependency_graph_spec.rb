@@ -479,7 +479,36 @@ RSpec.describe Philiprehberger::DependencyGraph do
     end
 
     describe '#remove' do
-      it 'removes a node and all edges referencing it' do
+      it 'returns true for an existing node and deletes it' do
+        graph.add(:a)
+        graph.add(:b)
+
+        expect(graph.remove(:a)).to be true
+        expect(graph.nodes).not_to have_key(:a)
+      end
+
+      it 'returns false for an unknown node and does not raise' do
+        expect { graph.remove(:unknown) }.not_to raise_error
+        expect(graph.remove(:unknown)).to be false
+      end
+
+      it 'removes the node from other nodes\' dependency lists' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+
+        graph.remove(:a)
+        expect(graph.dependencies_of(:b)).not_to include(:a)
+      end
+
+      it 'removes the node from other nodes\' dependents lists' do
+        graph.add(:a)
+        graph.add(:b, depends_on: [:a])
+
+        graph.remove(:b)
+        expect(graph.dependents_of(:a)).not_to include(:b)
+      end
+
+      it 'removes all edges referencing the removed node' do
         graph.add(:a)
         graph.add(:b, depends_on: [:a])
         graph.add(:c, depends_on: [:a])
@@ -488,10 +517,6 @@ RSpec.describe Philiprehberger::DependencyGraph do
         expect(graph.nodes).not_to have_key(:a)
         expect(graph.dependencies_of(:b)).to eq([])
         expect(graph.dependencies_of(:c)).to eq([])
-      end
-
-      it 'returns false for unknown nodes' do
-        expect(graph.remove(:unknown)).to be false
       end
     end
 

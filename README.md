@@ -136,6 +136,7 @@ graph.to_dot(name: 'MyDeps')  # Customize the digraph name
 |--------|-------------|
 | `DependencyGraph.new` | Create a new empty graph |
 | `Graph#add(item, depends_on:)` | Add an item with dependencies |
+| `Graph#remove(item)` | Remove a node and all incident edges; returns true when present, false otherwise |
 | `Graph#resolve` | Topological sort, dependencies first |
 | `Graph#parallel_batches` | Group into parallel execution batches |
 | `Graph#cycle?` | Check if the graph contains cycles |
